@@ -4,7 +4,7 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -17,12 +17,20 @@ app.use(session({
 const urlMongo = 'mongodb://localhost:27017';
 const nomeBanco = 'sistemaLogin';
 
+function protegerRota(req, res, proximo) {
+    if (req.session.usuario) {
+        proximo();
+    } else {
+        res.redirect('/login');
+    }
+}
+
 app.get('/registro', (req, res) => {
     res.sendFile(__dirname + '/views/registro.html');
 });
 
 app.post('/registro', async (req, res) => {
-    const cliente = new MongoClient(urlMongo, { useUnifiedTopology: true });
+    const cliente = new MongoClient(urlMongo);
     try {
         await cliente.connect();
         const banco = cliente.db(nomeBanco);
@@ -54,7 +62,7 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    const cliente = new MongoClient(urlMongo, { useUnifiedTopology: true });
+    const cliente = new MongoClient(urlMongo);
     try {
         await cliente.connect();
         const banco = cliente.db(nomeBanco);
@@ -76,21 +84,43 @@ app.post('/login', async (req, res) => {
     }
 });
 
-function protegerRota(req, res, proximo) {
-    if (req.session.usuario) {
-        proximo();
-    } else {
-        res.redirect('/login');
-    }
-}
-
 app.get('/bemVindo', protegerRota, (req, res) => {
     res.sendFile(__dirname + '/views/bemVindo.html');
 });
 
+app.get('/telaInicial', protegerRota, (req, res) => {
+    res.sendFile(__dirname + '/views/telaInicial.html');
+});
+
+app.get('/painelControle', protegerRota, (req, res) => {
+    res.sendFile(__dirname + '/views/painelControle.html');
+});
+
+app.get("/mensagemOi", async (req,res)=>{
+    const cliente = new MongoClient(urlMongo);
+    try {
+        await cliente.connect();
+        const banco = cliente.db(nomeBanco);
+        const colecaoUsuarios = banco.collection('usuarios');
+
+        const usuario = await colecaoUsuarios.findOne({ usuario: req.session.usuario });
+
+        res.json(usuario)
+
+    } catch (erro) {
+        console.error(erro);
+    } finally {
+        await cliente.close();
+    }
+})
+
+
+
 app.get('/erro', (req, res) => {
     res.sendFile(__dirname + '/views/erro.html');
 });
+
+
 
 app.get('/sair', (req, res) => {
     req.session.destroy((err) => { 
@@ -101,6 +131,6 @@ app.get('/sair', (req, res) => {
     });
 });
 
-app.listen(port, () => {
-    console.log(`Servidor rodando na porta http://localhost:${port}/login`);
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta http://localhost:${PORT}/login`);
 });
